@@ -1,0 +1,345 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String  @map("user_id")
+  type              String
+  provider          String
+  providerAccountId String  @map("provider_account_id")
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique @map("session_token")
+  userId       String   @map("user_id")
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+enum UserRole {
+  CITIZEN
+  STAFF
+  ADMIN
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+  PENDING_VERIFICATION
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime? @map("email_verified")
+  image         String?
+  username      String?   @unique
+  passwordHash  String?   @map("password_hash")
+  role          UserRole  @default(CITIZEN)
+  status        UserStatus @default(ACTIVE)
+
+  // Citizen profile fields
+  firstName     String?   @map("first_name")
+  lastName      String?   @map("last_name")
+  middleName    String?   @map("middle_name")
+  dateOfBirth   DateTime? @map("date_of_birth")
+  phone         String?
+  address       String?
+  barangay      String?
+  city          String?
+  province      String?
+  zipCode       String?   @map("zip_code")
+  idType        String?   @map("id_type")
+  idNumber      String?   @map("id_number")
+
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+  lastLoginAt   DateTime? @map("last_login_at")
+
+  accounts      Account[]
+  sessions      Session[]
+  applications  Application[]
+  documents     Document[]
+  notifications Notification[]
+  auditLogs     AuditLog[]
+
+  @@map("users")
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("verification_tokens")
+}
+
+enum ProgramStatus {
+  ACTIVE
+  INACTIVE
+  DRAFT
+  ARCHIVED
+}
+
+model AssistanceProgram {
+  id          String        @id @default(cuid())
+  name        String
+  description String?       @db.Text
+  category    String
+  requirements String?      @db.Text
+  benefits    String?       @db.Text
+  eligibility String?       @db.Text
+  status      ProgramStatus @default(ACTIVE)
+  startDate   DateTime?     @map("start_date")
+  endDate     DateTime?     @map("end_date")
+  budget      Decimal?      @db.Decimal(15, 2)
+  maxApplicants Int?       @map("max_applicants")
+  currentApplicants Int     @default(0) @map("current_applicants")
+  icon        String?
+  color       String?       @default("#0ea5e9")
+
+  createdAt   DateTime      @default(now()) @map("created_at")
+  updatedAt   DateTime      @updatedAt @map("updated_at")
+  createdBy   String?       @map("created_by")
+
+  applications Application[]
+  requirements ProgramRequirement[]
+
+  @@map("assistance_programs")
+}
+
+model ProgramRequirement {
+  id          String   @id @default(cuid())
+  programId   String   @map("program_id")
+  name        String
+  description String?  @db.Text
+  isRequired  Boolean  @default(true) @map("is_required")
+  documentType String? @map("document_type")
+  sortOrder   Int      @default(0) @map("sort_order")
+
+  program     AssistanceProgram @relation(fields: [programId], references: [id], onDelete: Cascade)
+
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@map("program_requirements")
+}
+
+enum ApplicationStatus {
+  DRAFT
+  PENDING
+  REVIEWING
+  DOCUMENTS_REQUIRED
+  APPROVED
+  REJECTED
+  SCHEDULED
+  CLAIMED
+  CANCELLED
+}
+
+model Application {
+  id              String            @id @default(cuid())
+  applicationNumber String          @unique @map("application_number")
+  userId          String            @map("user_id")
+  programId       String            @map("program_id")
+  status          ApplicationStatus @default(PENDING)
+
+  // Application data
+  formData        Json?             @map("form_data")
+  remarks         String?           @db.Text
+  reviewNotes     String?           @map("review_notes") @db.Text
+  reviewedBy      String?           @map("reviewed_by")
+  reviewedAt      DateTime?         @map("reviewed_at")
+  approvedBy      String?           @map("approved_by")
+  approvedAt      DateTime?         @map("approved_at")
+  claimedAt       DateTime?         @map("claimed_at")
+
+  // Claim schedule
+  scheduleId      String?           @map("schedule_id")
+
+  createdAt       DateTime          @default(now()) @map("created_at")
+  updatedAt       DateTime          @updatedAt @map("updated_at")
+  submittedAt     DateTime?         @map("submitted_at")
+
+  user            User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  program         AssistanceProgram @relation(fields: [programId], references: [id], onDelete: Cascade)
+  documents       Document[]
+  schedule        Schedule?         @relation(fields: [scheduleId], references: [id])
+
+  @@map("applications")
+}
+
+enum DocumentType {
+  ID_PROOF
+  RESIDENCY_PROOF
+  INCOME_PROOF
+  MEDICAL_RECORD
+  BIRTH_CERTIFICATE
+  MARRIAGE_CERTIFICATE
+  PHOTO
+  APPLICATION_FORM
+  OTHER
+}
+
+enum DocumentStatus {
+  PENDING
+  VERIFIED
+  REJECTED
+  EXPIRED
+}
+
+model Document {
+  id            String         @id @default(cuid())
+  userId        String         @map("user_id")
+  applicationId String?        @map("application_id")
+  type          DocumentType
+  name          String
+  description   String?
+  fileUrl       String         @map("file_url")
+  fileKey       String         @map("file_key")
+  fileSize      Int?           @map("file_size")
+  fileType      String?        @map("file_type")
+  status        DocumentStatus @default(PENDING)
+  verifiedBy    String?        @map("verified_by")
+  verifiedAt    DateTime?      @map("verified_at")
+  verificationNotes String?    @map("verification_notes")
+
+  createdAt     DateTime       @default(now()) @map("created_at")
+  updatedAt     DateTime       @updatedAt @map("updated_at")
+
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  application   Application?   @relation(fields: [applicationId], references: [id], onDelete: SetNull)
+
+  @@map("documents")
+}
+
+enum NotificationType {
+  APPLICATION_SUBMITTED
+  APPLICATION_REVIEWING
+  APPLICATION_APPROVED
+  APPLICATION_REJECTED
+  DOCUMENT_REQUIRED
+  DOCUMENT_VERIFIED
+  SCHEDULE_ASSIGNED
+  CLAIM_REMINDER
+  SYSTEM_ANNOUNCEMENT
+  STAFF_ASSIGNMENT
+}
+
+model Notification {
+  id          String           @id @default(cuid())
+  userId      String           @map("user_id")
+  type        NotificationType
+  title       String
+  message     String           @db.Text
+  isRead      Boolean          @default(false) @map("is_read")
+  link        String?
+  metadata    Json?
+
+  createdAt   DateTime         @default(now()) @map("created_at")
+
+  user        User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("notifications")
+}
+
+model Schedule {
+  id          String   @id @default(cuid())
+  applicationId String? @unique @map("application_id")
+  userId      String   @map("user_id")
+  programId   String   @map("program_id")
+
+  scheduledDate DateTime @map("scheduled_date")
+  scheduledTime String?  @map("scheduled_time")
+  location    String?
+  notes       String?    @db.Text
+  status      String     @default("SCHEDULED") // SCHEDULED, COMPLETED, CANCELLED, NO_SHOW
+
+  createdAt   DateTime   @default(now()) @map("created_at")
+  updatedAt   DateTime   @updatedAt @map("updated_at")
+  createdBy   String?    @map("created_by")
+
+  application Application?
+
+  @@map("schedules")
+}
+
+enum AuditAction {
+  LOGIN
+  LOGOUT
+  REGISTER
+  CREATE
+  UPDATE
+  DELETE
+  APPROVE
+  REJECT
+  VERIFY
+  SCHEDULE
+  CLAIM
+  EXPORT
+  SETTINGS_CHANGE
+  PASSWORD_CHANGE
+  ROLE_CHANGE
+  STATUS_CHANGE
+}
+
+model AuditLog {
+  id          String      @id @default(cuid())
+  userId      String?     @map("user_id")
+  action      AuditAction
+  entity      String      // Table name or entity type
+  entityId    String?     @map("entity_id")
+  oldValue    Json?       @map("old_value")
+  newValue    Json?       @map("new_value")
+  ipAddress   String?     @map("ip_address")
+  userAgent   String?     @map("user_agent")
+  details     String?
+
+  createdAt   DateTime    @default(now()) @map("created_at")
+
+  user        User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([action])
+  @@index([entity])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+model SystemSetting {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  value       String
+  description String?
+  category    String   @default("GENERAL")
+  isPublic    Boolean  @default(false) @map("is_public")
+
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  updatedBy   String?  @map("updated_by")
+
+  @@map("system_settings")
+}
