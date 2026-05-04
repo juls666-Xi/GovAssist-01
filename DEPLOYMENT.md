@@ -23,8 +23,10 @@ git push -u origin main
 3. Import your GitHub repository
 4. Configure project settings:
    - **Framework Preset**: Next.js
-   - **Build Command**: `prisma generate && next build`
+   - **Build Command**: `npm run vercel-build`
    - **Output Directory**: `.next`
+
+> The project includes `vercel.json` and a `vercel-build` script so Vercel can build with Prisma client generation before Next.js compilation.
 
 ### Step 3: Configure Environment Variables
 
