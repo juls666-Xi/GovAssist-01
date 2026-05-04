@@ -110,7 +110,7 @@ model AssistanceProgram {
   name        String
   description String?       @db.Text
   category    String
-  requirements String?      @db.Text
+  requirementsText String?      @db.Text
   benefits    String?       @db.Text
   eligibility String?       @db.Text
   status      ProgramStatus @default(ACTIVE)
@@ -178,7 +178,7 @@ model Application {
   claimedAt       DateTime?         @map("claimed_at")
 
   // Claim schedule
-  scheduleId      String?           @map("schedule_id")
+  scheduleId      String?           @unique @map("schedule_id")
 
   createdAt       DateTime          @default(now()) @map("created_at")
   updatedAt       DateTime          @updatedAt @map("updated_at")
