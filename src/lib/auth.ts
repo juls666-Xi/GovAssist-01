@@ -4,7 +4,7 @@ import Credentials from "next-auth/providers/credentials";
 import { z } from "zod";
 import bcrypt from "bcryptjs";
 import { prisma } from "./prisma";
-import { authConfig } from "./auth.config";
+import { authConfig } from "@/auth.config";
 
 const credentialsSchema = z.object({
   email: z.string().email(),
@@ -25,11 +25,6 @@ export const {
   },
   providers: [
     Credentials({
-      name: "credentials",
-      credentials: {
-        email: { label: "Email", type: "email" },
-        password: { label: "Password", type: "password" },
-      },
       async authorize(credentials) {
         const parsed = credentialsSchema.safeParse(credentials);
         if (!parsed.success) return null;
@@ -53,7 +48,9 @@ export const {
         if (!user || !user.passwordHash) return null;
         if (user.status === "SUSPENDED" || user.status === "INACTIVE") return null;
 
-        const isValid = await bcrypt.compare(password, user.passwordHash);
+        // Using compareSync can sometimes mitigate Edge warnings if the module is still bundled,
+        // but the split config is the primary solution.
+        const isValid = bcrypt.compareSync(password, user.passwordHash);
         if (!isValid) return null;
 
         // Update last login
