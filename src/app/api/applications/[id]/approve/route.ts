@@ -4,9 +4,10 @@ import { auth } from "@/lib/auth";
 
 export async function POST(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const session = await auth();
     if (!session?.user?.role || (session.user.role !== "STAFF" && session.user.role !== "ADMIN")) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 403 });
@@ -16,7 +17,7 @@ export async function POST(
     const { reviewNotes } = body;
 
     const application = await prisma.application.update({
-      where: { id: params.id },
+      where: { id },
       data: {
         status: "APPROVED",
         reviewNotes,

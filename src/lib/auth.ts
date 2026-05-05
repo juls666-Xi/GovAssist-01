@@ -2,7 +2,7 @@ import NextAuth from "next-auth";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import Credentials from "next-auth/providers/credentials";
 import { z } from "zod";
-import bcrypt from "bcryptjs";
+import { compareSync } from "bcrypt-ts";
 import { prisma } from "./prisma";
 import { authConfig } from "@/auth.config";
 
@@ -48,9 +48,7 @@ export const {
         if (!user || !user.passwordHash) return null;
         if (user.status === "SUSPENDED" || user.status === "INACTIVE") return null;
 
-        // Using compareSync can sometimes mitigate Edge warnings if the module is still bundled,
-        // but the split config is the primary solution.
-        const isValid = bcrypt.compareSync(password, user.passwordHash);
+        const isValid = compareSync(password, user.passwordHash);
         if (!isValid) return null;
 
         // Update last login
