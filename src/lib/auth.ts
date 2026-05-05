@@ -4,7 +4,7 @@ import Credentials from "next-auth/providers/credentials";
 import { z } from "zod";
 import { compareSync } from "bcrypt-ts";
 import { prisma } from "./prisma";
-import { authConfig } from "@/auth.config";
+import { authConfig } from "./auth.config";
 
 const credentialsSchema = z.object({
   email: z.string().email(),

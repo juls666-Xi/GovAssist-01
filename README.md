@@ -1,4 +1,4 @@
-# GovAssist Pro
+# GovAssist Pro can't deploy this shit might be a cursed
 
 A secure, modern, full-stack Government Assistance and Document Management System for municipalities, barangays, and local government units.
 
