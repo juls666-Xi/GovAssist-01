@@ -32,16 +32,17 @@ export const authConfig = {
 
       if (isOnDashboard) {
         if (isLoggedIn) {
-          const role = auth?.user?.role;
-          const path = nextUrl.pathname;
+          const role = auth.user?.role;
+          const { pathname } = nextUrl;
 
-          if (path.startsWith("/admin") && role !== "ADMIN") {
+          // Role-based Access Control (RBAC)
+          if (pathname.startsWith("/admin") && role !== "ADMIN") {
             return Response.redirect(new URL("/unauthorized", nextUrl));
           }
-          if (path.startsWith("/staff") && role !== "STAFF" && role !== "ADMIN") {
+          if (pathname.startsWith("/staff") && role !== "STAFF" && role !== "ADMIN") {
             return Response.redirect(new URL("/unauthorized", nextUrl));
           }
-          if (path.startsWith("/citizen") && role !== "CITIZEN" && role !== "STAFF" && role !== "ADMIN") {
+          if (pathname.startsWith("/citizen") && !["CITIZEN", "STAFF", "ADMIN"].includes(role as string)) {
             return Response.redirect(new URL("/unauthorized", nextUrl));
           }
           return true;
